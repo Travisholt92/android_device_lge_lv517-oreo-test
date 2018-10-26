@@ -35,9 +35,6 @@
 #include <string.h>
 #include <sys/sysinfo.h>
 
-#define _REALLY_INCLUDE_SYS__SYSTEM_PROPERTIES_H_
-#include <sys/_system_properties.h>
-
 #include <android-base/file.h>
 #include <android-base/properties.h>
 #include <android-base/strings.h>
@@ -47,12 +44,10 @@
 
 #include "init_msm8917.h"
 
-using android::base::GetProperty;
 using android::init::property_set;
 using android::base::ReadFileToString;
 using android::base::Trim;
 
-char const *model;
 char const *heapstartsize;
 char const *heapgrowthlimit;
 char const *heapsize;
@@ -63,79 +58,22 @@ char const *large_cache_height;
 __attribute__ ((weak))
 void init_target_properties() {}
 
-void property_override(char const prop[], char const value[])
-{
-    prop_info *pi;
-
-    pi = (prop_info*) __system_property_find(prop);
-    if (pi)
-        __system_property_update(pi, value, strlen(value));
-    else
-        __system_property_add(prop, strlen(prop), value, strlen(value));
-}
-
-static void init_alarm_boot_properties()
-{
-    char const *boot_reason_file = "/proc/sys/kernel/boot_reason";
-    char const *power_off_alarm_file = "/persist/alarm/powerOffAlarmSet";
-    std::string boot_reason;
-    std::string power_off_alarm;
-    std::string reboot_reason = GetProperty("ro.boot.alarmboot", "");
-
-    if (ReadFileToString(boot_reason_file, &boot_reason)
-            && ReadFileToString(power_off_alarm_file, &power_off_alarm)) {
-        /*
-         * Setup ro.alarm_boot value to true when it is RTC triggered boot up
-         * For existing PMIC chips, the following mapping applies
-         * for the value of boot_reason:
-         *
-         * 0 -> unknown
-         * 1 -> hard reset
-         * 2 -> sudden momentary power loss (SMPL)
-         * 3 -> real time clock (RTC)
-         * 4 -> DC charger inserted
-         * 5 -> USB charger inserted
-         * 6 -> PON1 pin toggled (for secondary PMICs)
-         * 7 -> CBLPWR_N pin toggled (for external power supply)
-         * 8 -> KPDPWR_N pin toggled (power key pressed)
-         */
-         if ((Trim(boot_reason) == "3" || reboot_reason == "true")
-                 && Trim(power_off_alarm) == "1") {
-             property_set("ro.alarm_boot", "true");
-         } else {
-             property_set("ro.alarm_boot", "false");
-         }
-    }
-}
 
 void check_device()
-{
-    std::ifstream fin;
-    std::string buf;
-
-    fin.open("/proc/cmdline");
-    while (std::getline(fin, buf, ' '))
-        if (buf.find("board_id") != std::string::npos)
-            break;
-    fin.close();
-
-    if (buf.find("S88503") != std::string::npos) {
-        model = "Redmi 4A";
-    } else {
-        model = "Redmi 5A";
-	property_set("ro.power_profile.override", "/vendor/etc/power_profile_riva.xml");
-    }
-
-}
-
-
-void check_ram()
 {
     struct sysinfo sys;
 
     sysinfo(&sys);
 
-    if (sys.totalram > 2048ull * 1024 * 1024) {
+    if (sys.totalram > 3072ull * 1024 * 1024) {
+        // from - phone-xxhdpi-4096-dalvik-heap.mk
+        heapstartsize = "16m";
+        heapgrowthlimit = "256m";
+        heapsize = "512m";
+        heapminfree = "4m";
+        heapmaxfree = "8m";
+	large_cache_height = "2048";
+    } else if (sys.totalram > 2048ull * 1024 * 1024) {
         // from - phone-xxhdpi-3072-dalvik-heap.mk
         heapstartsize = "8m";
         heapgrowthlimit = "288m";
@@ -152,35 +90,4 @@ void check_ram()
         heapmaxfree = "8m";
         large_cache_height = "1024";
    }
-}
-
-void vendor_load_properties()
-{
-    init_alarm_boot_properties();
-    check_device();
-    check_ram();
-
-    property_override("ro.product.model", model);
-    property_override("ro.vendor.product.model", model);
-
-    property_set("dalvik.vm.heapstartsize", heapstartsize);
-    property_set("dalvik.vm.heapgrowthlimit", heapgrowthlimit);
-    property_set("dalvik.vm.heapsize", heapsize);
-    property_set("dalvik.vm.heaptargetutilization", "0.75");
-    property_set("dalvik.vm.heapminfree", heapminfree);
-    property_set("dalvik.vm.heapmaxfree", heapmaxfree);
-
-    property_set("ro.hwui.texture_cache_size", "72");
-    property_set("ro.hwui.layer_cache_size", "48");
-    property_set("ro.hwui.r_buffer_cache_size", "8");
-    property_set("ro.hwui.path_cache_size", "32");
-    property_set("ro.hwui.gradient_cache_size", "1");
-    property_set("ro.hwui.drop_shadow_cache_size", "6");
-    property_set("ro.hwui.texture_cache_flushrate", "0.4");
-    property_set("ro.hwui.text_small_cache_width", "1024");
-    property_set("ro.hwui.text_small_cache_height", "1024");
-    property_set("ro.hwui.text_large_cache_width", "2048");
-    property_set("ro.hwui.text_large_cache_height", large_cache_height);
-
-    init_target_properties();
 }
