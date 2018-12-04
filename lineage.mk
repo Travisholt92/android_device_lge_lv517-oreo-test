@@ -19,18 +19,18 @@
 $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
+# Inherit from lv517 device
+$(call inherit-product, device/lge/lv517/device.mk)
+
 # Inherit some common Lineage stuff
 $(call inherit-product, vendor/lineage/config/common_full_phone.mk)
 
-# Inherit from rolex device
-$(call inherit-product, device/lge/lv517/device.mk)
-
-PRODUCT_BRAND := Lge
+BOARD_VENDOR := lge
 PRODUCT_DEVICE := lv517
-PRODUCT_MANUFACTURER := Lge
-PRODUCT_MODEL := TP260
 PRODUCT_NAME := lineage_lv517
-
+PRODUCT_BRAND := lge
+PRODUCT_MODEL := TP260
+PRODUCT_MANUFACTURER := lge
 PRODUCT_GMS_CLIENTID_BASE := android-lge
 
 TARGET_VENDOR_PRODUCT_NAME := lv517
